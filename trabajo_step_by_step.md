@@ -46,6 +46,11 @@ exactly where I expect them to be. Great!
 
 ## 1. 🐾 K-Means on the Zoo dataset
 
+> **Enunciado 1 del Boletín 1.** "Aplicar K-Means al conjunto `zoo.data` de la UCI,
+> estandarizando los atributos, probando varios valores de `k`, evaluando con
+> métricas como Silhouette y ARI, y comparando los clústeres con los tipos de
+> animal reales."
+
 ### Step 1.1 — Imports just for this problem
 
 ```python
@@ -181,6 +186,11 @@ features.
 
 ## 2. 🌳 Hierarchical agglomerative clustering
 
+> **Enunciado 2 del Boletín 1.** "Repetir el análisis de agrupamiento para el
+> conjunto Zoo pero usando clustering jerárquico aglomerativo. Comparar distintos
+> métodos de enlace, justificar el número de clústeres elegido a partir del
+> dendrograma y valorar qué tan bien reproduce las clases reales."
+
 ### Step 2.1 — Imports
 
 ```python
@@ -255,6 +265,11 @@ cleanly.
 
 ## 3. 🧩 DBSCAN on the textbook 2D example
 
+> **Enunciado 3 del Boletín 1.** "Tomar los 12 puntos del ejemplo teórico de
+> DBSCAN (cuatro grupos compactos en 2D) y aplicar el algoritmo calculando
+> manualmente un valor adecuado de `eps` y `MinPts`. Mostrar la asignación de
+> etiquetas y justificar la elección de parámetros."
+
 ### Step 3.1 — Creating the tiny dataset
 
 ```python
@@ -262,55 +277,66 @@ import numpy as np
 from sklearn.cluster import DBSCAN
 
 points = np.array([
-    (1.0, 1.2), (0.8, 1.1), (1.2, 0.9),
-    (3.0, 3.2), (3.1, 2.9), (2.8, 3.1),
-    (6.5, 6.7), (6.8, 6.9), (6.4, 6.5),
-    (9.0, 1.0), (9.3, 1.2), (8.9, 0.8),
+    (1.0, 1.0), (1.1, 1.0), (1.0, 1.1),
+    (3.0, 1.0), (3.1, 1.0), (3.0, 1.1),
+    (1.0, 3.0), (1.1, 3.0), (1.0, 3.1),
+    (3.0, 3.0), (3.1, 3.0), (3.0, 3.1),
 ])
 ```
 
-These coordinates mirror the hand-drawn clusters from the lecture. I chose
-explicit numbers so we can follow the calculation without plotting.
+Now the four little squares match exactly the diagram from the statement: every
+mini-cluster has three points extremely close to each other and the groups sit
+two units apart along the axes.
 
 ### Step 3.2 — Choosing parameters the classroom way
 
 ```python
 from sklearn.neighbors import NearestNeighbors
 
-neighbors = NearestNeighbors(n_neighbors=4)
+neighbors = NearestNeighbors(n_neighbors=3)
 neighbors.fit(points)
 distances, _ = neighbors.kneighbors(points)
 
-# I look at the sorted distance to the 3rd neighbour (index 2) to pick eps.
-third_distances = np.sort(distances[:, 2])
-third_distances
+# I inspect the distance to the 3rd neighbour (index 2) because MinPts = 3
+# in the statement counts the point itself. That means two neighbours are enough
+# to be a core point, so I want the farthest of those two to stay below eps.
+second_distances = np.sort(distances[:, 2])
+second_distances
 ```
 
-The sorted distances start small (~0.3) and jump near 1.5, so I pick `eps = 1.0`
-and `min_samples = 4`. That matches the rule of thumb from the notebook:
-"choose eps just before the big jump".
+The sorted distances stay below `0.45` and then jump straight to values above
+`2.0`. Following the "pick eps right before the big jump" rule, I set
+`eps = 0.5`. With `MinPts = 3` (named `min_samples` in scikit-learn) each core
+point sees its two neighbours.
 
 ### Step 3.3 — Running DBSCAN and labelling the points
 
 ```python
-model = DBSCAN(eps=1.0, min_samples=4)
+model = DBSCAN(eps=0.5, min_samples=3)
 db_labels = model.fit_predict(points)
 
 list(zip(range(1, len(points) + 1), db_labels))
 ```
 
-The output looks like `[(1, 0), (2, 0), (3, 0), …]`. All groups of three close
-points receive the same cluster id (0, 1, 2, 3). No point is labelled `-1`, so
-there is no noise. This matches the theoretical example perfectly.
+The output looks like `[(1, 0), (2, 0), (3, 0), …]`. Each tiny square gets its
+own label (`0`, `1`, `2`, `3`) and there is no `-1`, so DBSCAN finds no noise.
+That is exactly what the statement describes.
 
 ### Step 3.4 — Reflection
 
-- The k-distance plot is a handy visual tool to choose `eps`.
-- Increasing `min_samples` would split the clusters, so 4 is a safe option here.
+- The k-distance plot (or just looking at the sorted list) is the classroom way
+  to pick `eps`.
+- If I increased `min_samples` to 4, some points would lose a neighbour and turn
+  into noise, so I keep the exact value from the statement (`3`).
 
 ---
 
 ## 4. 🖼️ Image compression with K-Means
+
+> **Enunciado 4 del Boletín 1.** "Aplicar K-Means para comprimir la imagen
+> `landscape.ppm` creando paletas de distintos tamaños. Mostrar los resultados y
+> cuantificar el error de reconstrucción para comentar el compromiso entre
+> calidad y compresión."
 
 ### Step 4.1 — Loading the landscape image
 
@@ -379,6 +405,11 @@ original. In the notebook I would show the images side by side.
 ---
 
 ## 5. 😀 PCA on synthetic face-like data
+
+> **Enunciado 5 del Boletín 1.** "Construir el ejemplo de PCA sobre caritas 8×8:
+> calcular las componentes principales a mano y con `sklearn`, proyectar en los
+> dos primeros componentes, reconstruir las imágenes y analizar la pérdida de
+> información."
 
 This exercise mirrors the hand-crafted 8×8 faces we analysed in class. I reuse a
 small dataset of smiley faces with different expressions.
