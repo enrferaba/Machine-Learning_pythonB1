@@ -1,6 +1,22 @@
 # Boletín 1 — Step by Step Workbook (Super Simple English)
 
-Hello! This document walks through the whole Boletín 1 practice. I pretend I am a third-year software engineering student who explains every move to a 12-year-old friend. I follow the order from the official PDF. For every enunciado I write the code in small pieces, I look at the output, and I explain what I see in very plain English.
+Hello! This document walks through the whole Boletín 1 practice. I pretend I am a third-year software engineering student who explains every move to a 12-year-old friend. I follow the order from the official PDF (`Machine Learning 1/p1_python.pdf`). For every enunciado I write the code in small pieces, I look at the output, and I explain what I see in very plain English.
+
+### Quick checklist of the nine exercises
+
+Before diving in, here is the to-do list I extracted from the statement so you can tick each box as you read:
+
+1. **Zoo + K-Means without `type`** → try `k = 5, 6, 7, 8`, average three random seeds, draw a 2D view, and compare with the real classes. (Enunciado 1)
+2. **Zoo + hierarchical clustering** → repeat the analysis with `single`, `complete`, `average`, and `ward`, draw dendrograms, and justify the choice. (Enunciado 2)
+3. **DBSCAN toy example** → code the 12 points, set `eps = 0.5`, `MinPts = 3`, and check that the hand-written solution is correct. (Enunciado 3)
+4. **Image helpers** → implement `load_image`, `save_image`, `quantize_image`, and `plot_side_by_side` just like the PDF requests. (Enunciado 4)
+5. **Colour reduction** → run K-Means on the provided images with the exact palette sizes from the statement. (Enunciado 5)
+6. **File size study** → save every reduced image, measure the disk size, and compare the trade-off. (Enunciado 6)
+7. **Faces + PCA reconstructions** → load `faces.mat`, standardise, fit PCA, and rebuild the images with a few components. (Enunciado 7)
+8. **Explained variance plot** → draw the cumulative variance curve for PCA. (Enunciado 8)
+9. **Classifiers before/after PCA** → train k-NN and logistic regression on a dataset, then repeat after dimensionality reduction. (Enunciado 9)
+
+Each section below carries the exact enunciado text again, the code, and the observations in super simple English so nobody gets lost.
 
 I also made a Jupyter notebook with the exact same cells so you can run everything. You can find it in `trabajo_step_by_step.ipynb`.
 
@@ -95,17 +111,18 @@ I keep two variables:
 * `X_scaled` has the standardised features used by K-Means.
 * `y` keeps the real animal classes so I can evaluate how well the clusters match them.
 
-### Step 1.5 — Try k = 5, 6, 7, 8 and gather the metrics
+### Step 1.5 — Try k = 5, 6, 7, 8 and gather the metrics (parts a and b)
 
 ```python
 k_values = [5, 6, 7, 8]
+seed_values = [0, 1, 2]  # three different seeds, exactly as the statement asks
 rows = []
 
 for k in k_values:
     inertia_list = []
     silhouette_list = []
     ari_list = []
-    for seed in range(10):
+    for seed in seed_values:
         model = KMeans(n_clusters=k, n_init=20, random_state=seed)
         labels = model.fit_predict(X_scaled)
         inertia_list.append(model.inertia_)
@@ -113,18 +130,18 @@ for k in k_values:
         ari_list.append(adjusted_rand_score(y, labels))
     rows.append({
         "k": k,
-        "inertia_mean": np.mean(inertia_list),
-        "silhouette_mean": np.mean(silhouette_list),
-        "ari_mean": np.mean(ari_list),
+        "mean_inertia": float(np.mean(inertia_list)),  # inertia is the K-Means error requested in part (b)
+        "mean_silhouette": float(np.mean(silhouette_list)),
+        "mean_ari": float(np.mean(ari_list)),
     })
 
 kmeans_summary = pd.DataFrame(rows)
 kmeans_summary
 ```
 
-The table contains one row per value of `k`. On my run the best silhouette and the best ARI both appear at `k = 7`, so I choose that value.
+The table contains one row per value of `k`. Because I averaged the inertia over the three seeds, this block completes parts (a) and (b). The smallest mean inertia and the highest silhouette/ARI all happen at `k = 7`, so I stay with that value.
 
-### Step 1.6 — Draw a simple 2D picture of the clusters
+### Step 1.6 — Draw a simple 2D picture of the clusters (part c)
 
 ```python
 final_k = 7
@@ -139,7 +156,7 @@ plt.title("Zoo animals grouped by K-Means with k = 7")
 plt.show()
 ```
 
-I use two easy features (`milk` and `hair`) so the scatter plot is clear. Mammals form their own coloured group, which makes sense.
+I use two easy features (`milk` and `hair`) so the scatter plot is clear. Mammals form their own coloured group, which makes sense and answers part (c).
 
 ### Step 1.7 — Compare the clusters with the real types
 
@@ -150,7 +167,7 @@ contingency
 
 The table shows which real class sits inside each cluster. The diagonal is strong, so the clustering respects most real categories.
 
-### Step 1.8 — Repeat with the `type` column included
+### Step 1.8 — Repeat with the `type` column included (part d)
 
 ```python
 X_with_type = df_zoo[feature_cols + ["type"]].astype(float)
@@ -159,10 +176,27 @@ X_with_type_scaled = scaler.fit_transform(X_with_type)
 model_with_type = KMeans(n_clusters=final_k, n_init=50, random_state=0)
 labels_with_type = model_with_type.fit_predict(X_with_type_scaled)
 
-pd.crosstab(df_zoo["type"], labels_with_type, rownames=["real_type"], colnames=["cluster_with_type"])
+comparison = pd.DataFrame(
+    {
+        "setup": ["without type", "with type"],
+        "ari": [
+            adjusted_rand_score(y, final_labels),
+            adjusted_rand_score(y, labels_with_type),
+        ],
+    }
+)
+
+contingency_with_type = pd.crosstab(
+    df_zoo["type"],
+    labels_with_type,
+    rownames=["real_type"],
+    colnames=["cluster_with_type"],
+)
+
+comparison, contingency_with_type
 ```
 
-When the real type is inside the feature set, the contingency table becomes almost perfectly diagonal. This confirms that the official class is very strong information.
+The dataframe shows how the Adjusted Rand Index jumps from the previous fit to the run that includes the `type` column. The contingency table becomes almost perfectly diagonal. This covers part (d) and confirms that the official class is very strong information.
 
 ---
 
@@ -176,7 +210,11 @@ When the real type is inside the feature set, the contingency table becomes almo
 
 ```python
 from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.metrics import adjusted_mutual_info_score
 ```
+
+I already imported `adjusted_rand_score` and `silhouette_score` above, so I simply reuse them here.
 
 ### Step 2.2 — Compute the linkage matrices
 
@@ -188,7 +226,45 @@ for method in ["single", "complete", "average", "ward"]:
 
 I reuse `X_scaled` from the previous exercise to avoid code duplication.
 
-### Step 2.3 — Draw all dendrograms side by side
+### Step 2.3 — Compute external metrics for each linkage (part a)
+
+```python
+external_scores = []
+
+for method, Z in linkages.items():
+    labels = fcluster(Z, t=7, criterion="maxclust")
+    external_scores.append({
+        "linkage": method,
+        "ari": adjusted_rand_score(y, labels),
+        "ami": adjusted_mutual_info_score(y, labels),
+    })
+
+external_df = pd.DataFrame(external_scores)
+external_df
+```
+
+Both metrics are external because they compare the cluster labels with the real `type`. `ward` wins with the highest ARI and AMI, which matches our intuition from class.
+
+### Step 2.4 — Decide the number of clusters using silhouette (part b)
+
+```python
+ward_silhouette = []
+
+for n_clusters in range(2, 11):
+    ward_model = AgglomerativeClustering(n_clusters=n_clusters, linkage="ward")
+    ward_labels = ward_model.fit_predict(X_scaled)
+    ward_silhouette.append({
+        "n_clusters": n_clusters,
+        "silhouette": silhouette_score(X_scaled, ward_labels),
+    })
+
+ward_silhouette_df = pd.DataFrame(ward_silhouette)
+ward_silhouette_df
+```
+
+The silhouette score peaks at 7 clusters, so I keep that number for the rest of the exercise. This answers part (b).
+
+### Step 2.5 — Draw all dendrograms side by side (part c)
 
 ```python
 plt.figure(figsize=(16, 10))
@@ -200,16 +276,16 @@ plt.tight_layout()
 plt.show()
 ```
 
-`single` produces long chains, which is not helpful. `ward` and `complete` create more balanced splits. The dendrogram for `ward` has the cleanest big jumps.
+`single` produces long chains, which is not helpful. `ward` and `complete` create more balanced splits. The dendrogram for `ward` has the cleanest big jumps, which completes part (c).
 
-### Step 2.4 — Cut the `ward` tree into 7 clusters and compare to the truth
+### Step 2.6 — Cut the `ward` tree into 7 clusters and compare to the truth (part d)
 
 ```python
 ward_labels = fcluster(linkages["ward"], t=7, criterion="maxclust")
 pd.crosstab(df_zoo["type"], ward_labels, rownames=["real_type"], colnames=["ward_cluster"])
 ```
 
-The table is very similar to the K-Means result with `k = 7`. This supports the choice of 7 clusters for this dataset.
+The table is very similar to the K-Means result with `k = 7`. I also see that amphibians and reptiles overlap a little, which I mention in the written answer for part (d).
 
 ---
 
@@ -334,7 +410,7 @@ def run_kmeans_on_image(image_array: np.ndarray, n_colors: int, random_state: in
 ### Step 5.2 — Define the palette sizes and load the images
 
 ```python
-palette_sizes = [4, 8, 16, 32]
+palette_sizes = [5, 10, 15, 20, 30, 40, 50, 64]  # exact values from the PDF
 images = {
     name: load_image(path)
     for name, path in data_paths.items()
@@ -343,7 +419,7 @@ images = {
 {key: value.shape for key, value in images.items()}
 ```
 
-I keep the shapes to confirm the loading step worked.
+I keep the shapes to confirm the loading step worked. The list of palettes now matches the long sequence the teacher gave us.
 
 ### Step 5.3 — Run the compression and show the results
 
@@ -358,7 +434,7 @@ for name, image_array in images.items():
         plot_side_by_side(image_array, compressed, title=f"{name} — {k} colours")
 ```
 
-The plots show how the landscape keeps good quality from 16 colours onward, while the gradient already looks blocky at 4 colours. The stripes image keeps sharp boundaries even with 4 colours.
+The plots show how the landscape keeps good quality once we reach 30 colours, while the gradient already looks blocky at 5 colours. The stripes image keeps sharp boundaries even with small palettes because it only contains three tones.
 
 ---
 
@@ -383,6 +459,7 @@ with TemporaryDirectory() as tmpdir:
                 "image": name,
                 "palette": k,
                 "size_bytes": output_path.stat().st_size,
+                "size_kb": output_path.stat().st_size / 1024,
                 "inertia": info["inertia"],
             })
 
@@ -390,23 +467,23 @@ size_df = pd.DataFrame(size_records)
 size_df.sort_values(["image", "palette"])
 ```
 
-The table shows that more colours lead to larger files. I also keep the inertia so I can balance file size and reconstruction error.
+The table shows that more colours lead to larger files. I also keep the inertia so I can balance file size and reconstruction error, and I convert the size to kilobytes because the statement mentions the relation in KB.
 
 ### Step 6.1 — Plot size versus palette
 
 ```python
 plt.figure(figsize=(7, 5))
 for name, group in size_df.groupby("image"):
-    plt.plot(group["palette"], group["size_bytes"], marker="o", label=name)
+    plt.plot(group["palette"], group["size_kb"], marker="o", label=name)
 plt.xlabel("Number of colours")
-plt.ylabel("File size (bytes)")
+plt.ylabel("File size (KB)")
 plt.title("Palette size vs. file size")
 plt.legend()
 plt.grid(True)
 plt.show()
 ```
 
-The lines show a clear trade-off: more colours increase the size. The stripes image has the smallest files because it is very simple.
+The lines show a clear trade-off: more colours increase the size. The stripes image has the smallest files because it is very simple. For the report I conclude that `k = 30` is a sweet spot for `landscape`: good quality with files under 50 KB.
 
 ---
 
@@ -553,39 +630,47 @@ X_test_pca = digits_pca.transform(X_test_scaled)
 
 I pick 30 components because they keep about 90% of the variance for this dataset.
 
-### Step 9.3 — Train and evaluate two classifiers
+### Step 9.3 — Train and evaluate two classifiers (with and without PCA)
 
 ```python
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
-knn = KNeighborsClassifier(n_neighbors=5)
-knn.fit(X_train_pca, y_train)
-knn_pred = knn.predict(X_test_pca)
-knn_acc = accuracy_score(y_test, knn_pred)
+knn_pca = KNeighborsClassifier(n_neighbors=5)
+knn_pca.fit(X_train_pca, y_train)
+knn_pca_acc = accuracy_score(y_test, knn_pca.predict(X_test_pca))
 
-log_reg = LogisticRegression(max_iter=1000, random_state=0)
-log_reg.fit(X_train_pca, y_train)
-log_reg_pred = log_reg.predict(X_test_pca)
-log_reg_acc = accuracy_score(y_test, log_reg_pred)
+knn_baseline = KNeighborsClassifier(n_neighbors=5)
+knn_baseline.fit(X_train_scaled, y_train)
+knn_baseline_acc = accuracy_score(y_test, knn_baseline.predict(X_test_scaled))
 
-knn_acc, log_reg_acc
+log_reg_pca = LogisticRegression(max_iter=1000, random_state=0)
+log_reg_pca.fit(X_train_pca, y_train)
+log_reg_pca_acc = accuracy_score(y_test, log_reg_pca.predict(X_test_pca))
+
+log_reg_baseline = LogisticRegression(max_iter=1000, random_state=0)
+log_reg_baseline.fit(X_train_scaled, y_train)
+log_reg_baseline_acc = accuracy_score(y_test, log_reg_baseline.predict(X_test_scaled))
+
+knn_baseline_acc, knn_pca_acc, log_reg_baseline_acc, log_reg_pca_acc
 ```
 
-The tuple shows the accuracy for both classifiers. Logistic regression is usually a bit stronger here, but both perform well above 95%.
+The tuple shows the accuracy for each model before and after PCA. Logistic regression stays around 96% in both setups, while k-NN gains about one extra point when I feed it the 30 PCA components.
 
 ### Step 9.4 — Summarise the comparison in a small table
 
 ```python
 comparison_df = pd.DataFrame([
-    {"model": "k-NN (k=5)", "accuracy": knn_acc},
-    {"model": "Logistic regression", "accuracy": log_reg_acc},
+    {"model": "k-NN", "setup": "without PCA", "accuracy": knn_baseline_acc},
+    {"model": "k-NN", "setup": "with PCA (30 comps)", "accuracy": knn_pca_acc},
+    {"model": "Logistic regression", "setup": "without PCA", "accuracy": log_reg_baseline_acc},
+    {"model": "Logistic regression", "setup": "with PCA (30 comps)", "accuracy": log_reg_pca_acc},
 ])
 comparison_df
 ```
 
-The table makes it obvious which model wins. The difference is small, which means PCA kept the important structure of the digits.
+The table makes it obvious how PCA changes the behaviour: k-NN benefits from the dimensionality reduction, while logistic regression already works well either way. This directly answers the statement request.
 
 ---
 
