@@ -150,7 +150,9 @@ results_kmeans
 ```
 
 I record inertia, silhouette, and Adjusted Rand Index for each `k` and seed. This follows the evaluation style we practised in
-class.
+class. When I run the cell I still see the long MKL warning that Windows prints for K-Means. I leave it visible so I get used to
+reading warnings like a beginner: it is just telling me that if I want to avoid a possible memory leak I can set `OMP_NUM_THREADS = 1`.
+The code still works and the table appears under the warning.
 
 ### 1.H Average the seeds to decide k (class step: Visualization + Evaluation)
 
