@@ -67,7 +67,11 @@ ready I follow the enunciados one by one.
 ```python
 from class_helpers import load_zoo
 
-df_zoo, feature_cols, X_zoo, y_zoo = load_zoo(include_type=False)
+zoo_data = load_zoo(include_type=False)
+feature_cols = zoo_data.feature_names
+X_zoo = zoo_data.features
+y_zoo = zoo_data.labels
+df_zoo = zoo_data.table
 df_zoo.head()
 ```
 
@@ -76,7 +80,8 @@ The preview shows familiar animals (aardvark, antelope…) with binary features.
 ### 1.B Quick scan of the table (class step: Visualization)
 
 ```python
-df_zoo, _, _, _ = load_zoo(include_type=False)
+zoo_data = load_zoo(include_type=False)
+df_zoo = zoo_data.table
 df_zoo.info()
 ```
 
@@ -85,7 +90,11 @@ All columns are numeric or strings, and there are 101 animals. This matches the 
 ### 1.C Pick the useful columns (class step: Data Selection)
 
 ```python
-df_zoo, feature_cols, X_zoo, y_zoo = load_zoo(include_type=False)
+zoo_data = load_zoo(include_type=False)
+feature_cols = zoo_data.feature_names
+X_zoo = zoo_data.features
+y_zoo = zoo_data.labels
+df_zoo = zoo_data.table
 feature_cols
 ```
 
@@ -94,7 +103,8 @@ I store the features in `X_zoo` and the real classes in `y_zoo` for later evalua
 ### 1.D Look for missing values (class step: Missing Values)
 
 ```python
-_, _, X_zoo, _ = load_zoo(include_type=False)
+zoo_data = load_zoo(include_type=False)
+X_zoo = zoo_data.features
 X_zoo.isna().sum()
 ```
 
@@ -103,7 +113,8 @@ All sums are zero, so no cleaning is needed.
 ### 1.E Understand the feature scales (class step: Visualization)
 
 ```python
-_, _, X_zoo, _ = load_zoo(include_type=False)
+zoo_data = load_zoo(include_type=False)
+X_zoo = zoo_data.features
 X_zoo.describe().T
 ```
 
@@ -115,7 +126,8 @@ standardise the data.
 ```python
 from class_helpers import load_zoo, scale_features
 
-_, _, X_zoo, _ = load_zoo(include_type=False)
+zoo_data = load_zoo(include_type=False)
+X_zoo = zoo_data.features
 scaler, X_zoo_scaled = scale_features(X_zoo)
 scaler
 ```
@@ -128,8 +140,10 @@ from class_helpers import grid_search_kmeans, load_zoo, scale_features
 k_values = [5, 6, 7, 8]
 seed_values = [0, 1, 2]
 
-_, _, X_zoo, y_zoo = load_zoo(include_type=False)
-_, X_zoo_scaled = scale_features(X_zoo)
+zoo_data = load_zoo(include_type=False)
+X_zoo = zoo_data.features
+y_zoo = zoo_data.labels
+scaler, X_zoo_scaled = scale_features(X_zoo)
 
 results_kmeans = grid_search_kmeans(X_zoo_scaled, y_zoo, k_values, seed_values)
 results_kmeans
@@ -146,8 +160,10 @@ from class_helpers import grid_search_kmeans, load_zoo, scale_features
 try:
     results_kmeans
 except NameError:
-    _, _, X_zoo, y_zoo = load_zoo(include_type=False)
-    _, X_zoo_scaled = scale_features(X_zoo)
+    zoo_data = load_zoo(include_type=False)
+    X_zoo = zoo_data.features
+    y_zoo = zoo_data.labels
+    scaler, X_zoo_scaled = scale_features(X_zoo)
     results_kmeans = grid_search_kmeans(X_zoo_scaled, y_zoo, [5, 6, 7, 8], [0, 1, 2])
 
 results_summary = (
@@ -166,8 +182,9 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 
-_, _, X_zoo, _ = load_zoo(include_type=False)
-_, X_zoo_scaled = scale_features(X_zoo)
+zoo_data = load_zoo(include_type=False)
+X_zoo = zoo_data.features
+scaler, X_zoo_scaled = scale_features(X_zoo)
 
 pca = PCA(n_components=2, random_state=0)
 X_zoo_2d = pca.fit_transform(X_zoo_scaled)
@@ -192,8 +209,10 @@ The PCA projection keeps the class PDF idea: we reduce the dimensions and then w
 from class_helpers import load_zoo, scale_features
 from sklearn.cluster import KMeans
 
-_, _, X_zoo, y_zoo = load_zoo(include_type=False)
-_, X_zoo_scaled = scale_features(X_zoo)
+zoo_data = load_zoo(include_type=False)
+X_zoo = zoo_data.features
+y_zoo = zoo_data.labels
+scaler, X_zoo_scaled = scale_features(X_zoo)
 best_labels = KMeans(n_clusters=7, random_state=0, n_init=10).fit_predict(X_zoo_scaled)
 
 pd.crosstab(best_labels, y_zoo, rownames=["cluster"], colnames=["type"])
@@ -210,8 +229,11 @@ from class_helpers import grid_search_kmeans, load_zoo, scale_features
 k_values = [5, 6, 7, 8]
 seed_values = [0, 1, 2]
 
-_, feature_cols_with_type, X_with_type, y_zoo = load_zoo(include_type=True)
-_, X_with_type_scaled = scale_features(X_with_type)
+zoo_data_with_type = load_zoo(include_type=True)
+feature_cols_with_type = zoo_data_with_type.feature_names
+X_with_type = zoo_data_with_type.features
+y_zoo = zoo_data_with_type.labels
+scaler_with_type, X_with_type_scaled = scale_features(X_with_type)
 
 rows_with_type = grid_search_kmeans(X_with_type_scaled, y_zoo, k_values, seed_values)
 rows_with_type
@@ -236,8 +258,9 @@ from class_helpers import load_zoo, scale_features
 from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn.metrics import pairwise_distances
 
-_, _, X_zoo, _ = load_zoo(include_type=False)
-_, X_zoo_scaled = scale_features(X_zoo)
+zoo_data = load_zoo(include_type=False)
+X_zoo = zoo_data.features
+scaler, X_zoo_scaled = scale_features(X_zoo)
 
 zoo_distance_matrix = pairwise_distances(X_zoo_scaled, metric="euclidean")
 ```

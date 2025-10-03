@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List
 
 import numpy as np
 import pandas as pd
@@ -48,7 +49,7 @@ def ensure_faces_dataset(path: Path) -> None:
 
         y_coords, x_coords = np.ogrid[:size, :size]
 
-        for _ in range(400):
+        for sample_index in range(400):
             canvas = np.zeros((size, size), dtype=np.float32)
 
             cy, cx = size / 2 + rng.normal(0, 1), size / 2 + rng.normal(0, 1)
@@ -147,7 +148,15 @@ ZOO_COLUMNS: List[str] = [
 ]
 
 
-def load_zoo(include_type: bool = False) -> Tuple[pd.DataFrame, List[str], pd.DataFrame, pd.Series]:
+@dataclass
+class ZooDataset:
+    table: pd.DataFrame
+    feature_names: List[str]
+    features: pd.DataFrame
+    labels: pd.Series
+
+
+def load_zoo(include_type: bool = False) -> ZooDataset:
     ensure_practice_paths()
     df = pd.read_csv(paths["zoo"], header=None, names=ZOO_COLUMNS)
     if include_type:
@@ -156,10 +165,10 @@ def load_zoo(include_type: bool = False) -> Tuple[pd.DataFrame, List[str], pd.Da
         feature_cols = [col for col in ZOO_COLUMNS if col not in {"animal_name", "type"}]
     X = df[feature_cols].astype(float)
     y = df["type"].astype(int)
-    return df, feature_cols, X, y
+    return ZooDataset(table=df, feature_names=feature_cols, features=X, labels=y)
 
 
-def scale_features(X: pd.DataFrame) -> Tuple[StandardScaler, np.ndarray]:
+def scale_features(X: pd.DataFrame) -> tuple[StandardScaler, np.ndarray]:
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     return scaler, X_scaled
@@ -191,7 +200,7 @@ def grid_search_kmeans(
     return pd.DataFrame(rows)
 
 
-def load_faces() -> Tuple[np.ndarray, np.ndarray]:
+def load_faces() -> tuple[np.ndarray, np.ndarray]:
     ensure_practice_paths()
     try:
         from scipy.io import loadmat
