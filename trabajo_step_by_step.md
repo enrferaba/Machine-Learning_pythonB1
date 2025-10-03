@@ -39,125 +39,16 @@ class workflow.
 ## 0. Shared preparation from the class PDFs
 
 **Class step: Loading Data + Data Selection.** I start by pointing to all the datasets and images that appear later. This tiny
-piece makes the rest of the exercises cleaner.
+piece makes the rest of the exercises cleaner. To avoid copy-pasting the long snippet many times, I placed it inside a helper
+module called `class_helpers.py`. It contains the exact same path setup, the automatic `faces.mat` creator, and a few loader
+functions that mimic what we did in the class PDFs.
 
 ```python
-from pathlib import Path
+# I stored the class snippet and helper loaders inside class_helpers.py so I can reuse it.
+from class_helpers import DATA_DIR, IMAGES_DIR, OUTPUT_DIR, ensure_practice_paths, paths
 
-DATA_DIR = Path("Files-20250930 (2)")
-IMAGES_DIR = Path("prueba1/images")
-OUTPUT_DIR = Path("prueba1/reduced_images")
-
-paths = {
-    "zoo": DATA_DIR / "zoo.data",
-    "faces": DATA_DIR / "faces.mat",
-    "landscape": IMAGES_DIR / "landscape.ppm",
-    "gradient": IMAGES_DIR / "gradient.ppm",
-    "stripes": IMAGES_DIR / "stripes.ppm",
-}
-
-
-def ensure_faces_dataset(path: Path) -> None:
-    """Create faces.mat the way we used in class when it is not shipped."""
-
-    if path.exists():
-        print(f"faces.mat already present at {path}")
-        return
-
-    print("faces.mat missing → building a replacement so the PCA steps run.")
-
-    import numpy as np
-
-    try:
-        from sklearn.datasets import fetch_olivetti_faces
-
-        fetched = fetch_olivetti_faces()
-        faces = fetched.data.astype(np.float32)
-        labels = fetched.target.astype(np.int16)
-        origin = "Olivetti faces fetched with scikit-learn"
-    except Exception as download_error:  # noqa: BLE001
-        print("Could not fetch the Olivetti set (offline class setup). Creating toy faces.")
-
-        rng = np.random.default_rng(0)
-        size = 64
-        faces_list = []
-        labels_list = []
-
-        y_coords, x_coords = np.ogrid[:size, :size]
-
-        for _ in range(400):
-            canvas = np.zeros((size, size), dtype=np.float32)
-
-            cy, cx = size / 2 + rng.normal(0, 1), size / 2 + rng.normal(0, 1)
-            ry = size / 2.2 + rng.normal(0, 0.5)
-            rx = size / 2.5 + rng.normal(0, 0.5)
-            mask = ((y_coords - cy) / ry) ** 2 + ((x_coords - cx) / rx) ** 2 <= 1
-            canvas[mask] = 0.3 + rng.normal(0, 0.02)
-
-            eye_y = size * 0.35 + rng.normal(0, 1)
-            eye_dx = size * 0.18 + rng.normal(0, 0.5)
-            eye_radius = size * 0.05 + rng.normal(0, 0.01)
-            for sign in (-1, 1):
-                ex = cx + sign * eye_dx
-                ey = eye_y + rng.normal(0, 0.5)
-                dist = ((x_coords - ex) ** 2 + (y_coords - ey) ** 2) ** 0.5
-                canvas += 0.6 * np.exp(-(dist ** 2) / (2 * (eye_radius**2)))
-
-            pupil_radius = eye_radius * 0.4
-            for sign in (-1, 1):
-                ex = cx + sign * eye_dx
-                ey = eye_y + rng.normal(0, 0.3)
-                dist = ((x_coords - ex) ** 2 + (y_coords - ey) ** 2) ** 0.5
-                canvas += 0.8 * np.exp(-(dist ** 2) / (2 * (pupil_radius**2)))
-
-            nose_x = cx + rng.normal(0, 0.5)
-            nose_y = size * 0.5 + rng.normal(0, 0.5)
-            nose_height = size * 0.12 + rng.normal(0, 0.01)
-            nose_width = size * 0.05 + rng.normal(0, 0.01)
-            nose_mask = ((x_coords - nose_x) / nose_width) ** 2 + ((y_coords - nose_y) / nose_height) ** 2 <= 1
-            canvas[nose_mask] += 0.15
-
-            mouth_y = size * 0.7 + rng.normal(0, 0.5)
-            mouth_width = size * 0.25 + rng.normal(0, 0.01)
-            mouth_height = size * 0.05 + rng.normal(0, 0.01)
-            mouth = np.clip(
-                1 - ((x_coords - cx) / mouth_width) ** 2 - ((y_coords - mouth_y) / mouth_height) ** 2,
-                0,
-                None,
-            )
-            smile = rng.choice([0.3, 0.5, 0.7])
-            canvas += smile * mouth
-
-            hairline = size * (0.2 + 0.05 * rng.random())
-            canvas += 0.15 * np.exp(-((y_coords - hairline) ** 2) / (2 * (size * 0.08) ** 2))
-
-            canvas -= canvas.min()
-            canvas /= canvas.max() + 1e-8
-
-            faces_list.append(canvas.reshape(-1))
-            labels_list.append(int(smile * 10))
-
-        faces = np.stack(faces_list)
-        labels = np.asarray(labels_list, dtype=np.int16)
-        origin = f"synthetic parametric faces (fallback). Original error: {download_error}"
-
-    try:
-        from scipy.io import savemat
-    except ImportError as missing_scipy:  # pragma: no cover - user needs SciPy once
-        raise ImportError(
-            "SciPy is required to create faces.mat automatically. Install it or copy the file manually."
-        ) from missing_scipy
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    savemat(path, {"X": faces, "l": labels})
-    print(f"Saved {faces.shape[0]} faces ({origin}) to {path}")
-
-
-for name, path in paths.items():
-    if name == "faces":
-        ensure_faces_dataset(path)
-    else:
-        assert path.exists(), f"Missing {name} file: {path}"
+ensure_practice_paths()
+paths
 ```
 
 Now the helper makes sure the tricky `faces.mat` file exists even when the practice ZIP does not bundle it. With the resources
@@ -174,16 +65,9 @@ ready I follow the enunciados one by one.
 ### 1.A Loading Data (class step: Loading Data)
 
 ```python
-import pandas as pd
-import numpy as np
+from class_helpers import load_zoo
 
-zoo_columns = [
-    "animal_name", "hair", "feathers", "eggs", "milk", "airborne", "aquatic",
-    "predator", "toothed", "backbone", "breathes", "venomous", "fins",
-    "legs", "tail", "domestic", "catsize", "type"
-]
-
-df_zoo = pd.read_csv(paths["zoo"], header=None, names=zoo_columns)
+df_zoo, feature_cols, X_zoo, y_zoo = load_zoo(include_type=False)
 df_zoo.head()
 ```
 
@@ -192,6 +76,7 @@ The preview shows familiar animals (aardvark, antelope…) with binary features.
 ### 1.B Quick scan of the table (class step: Visualization)
 
 ```python
+df_zoo, _, _, _ = load_zoo(include_type=False)
 df_zoo.info()
 ```
 
@@ -200,9 +85,8 @@ All columns are numeric or strings, and there are 101 animals. This matches the 
 ### 1.C Pick the useful columns (class step: Data Selection)
 
 ```python
-feature_cols = [c for c in df_zoo.columns if c not in {"animal_name", "type"}]
-X_zoo = df_zoo[feature_cols].astype(float)
-y_zoo = df_zoo["type"].astype(int)
+df_zoo, feature_cols, X_zoo, y_zoo = load_zoo(include_type=False)
+feature_cols
 ```
 
 I store the features in `X_zoo` and the real classes in `y_zoo` for later evaluation.
@@ -210,6 +94,7 @@ I store the features in `X_zoo` and the real classes in `y_zoo` for later evalua
 ### 1.D Look for missing values (class step: Missing Values)
 
 ```python
+_, _, X_zoo, _ = load_zoo(include_type=False)
 X_zoo.isna().sum()
 ```
 
@@ -218,6 +103,7 @@ All sums are zero, so no cleaning is needed.
 ### 1.E Understand the feature scales (class step: Visualization)
 
 ```python
+_, _, X_zoo, _ = load_zoo(include_type=False)
 X_zoo.describe().T
 ```
 
@@ -227,37 +113,25 @@ standardise the data.
 ### 1.F Scale the data (class step: Data Transformation)
 
 ```python
-from sklearn.preprocessing import StandardScaler
+from class_helpers import load_zoo, scale_features
 
-scaler = StandardScaler()
-X_zoo_scaled = scaler.fit_transform(X_zoo)
+_, _, X_zoo, _ = load_zoo(include_type=False)
+scaler, X_zoo_scaled = scale_features(X_zoo)
+scaler
 ```
 
 ### 1.G Run K-Means for k = 5, 6, 7, 8 (class step: Modeling + Evaluation)
 
 ```python
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score, adjusted_rand_score
+from class_helpers import grid_search_kmeans, load_zoo, scale_features
 
 k_values = [5, 6, 7, 8]
 seed_values = [0, 1, 2]
 
-rows = []
-for k in k_values:
-    for seed in seed_values:
-        model = KMeans(n_clusters=k, random_state=seed, n_init=10)
-        labels = model.fit_predict(X_zoo_scaled)
-        rows.append(
-            {
-                "k": k,
-                "seed": seed,
-                "inertia": model.inertia_,
-                "silhouette": silhouette_score(X_zoo_scaled, labels),
-                "ARI": adjusted_rand_score(y_zoo, labels),
-            }
-        )
+_, _, X_zoo, y_zoo = load_zoo(include_type=False)
+_, X_zoo_scaled = scale_features(X_zoo)
 
-results_kmeans = pd.DataFrame(rows)
+results_kmeans = grid_search_kmeans(X_zoo_scaled, y_zoo, k_values, seed_values)
 results_kmeans
 ```
 
@@ -267,6 +141,15 @@ class.
 ### 1.H Average the seeds to decide k (class step: Visualization + Evaluation)
 
 ```python
+from class_helpers import grid_search_kmeans, load_zoo, scale_features
+
+try:
+    results_kmeans
+except NameError:
+    _, _, X_zoo, y_zoo = load_zoo(include_type=False)
+    _, X_zoo_scaled = scale_features(X_zoo)
+    results_kmeans = grid_search_kmeans(X_zoo_scaled, y_zoo, [5, 6, 7, 8], [0, 1, 2])
+
 results_summary = (
     results_kmeans.groupby("k")[["inertia", "silhouette", "ARI"]].mean().reset_index()
 )
@@ -278,8 +161,13 @@ The silhouette is highest around `k = 7`, and the ARI is also strong there. That
 ### 1.I Draw a 2D view of the clusters (class step: Visualization + Dimensionality Reduction)
 
 ```python
+from class_helpers import load_zoo, scale_features
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+
+_, _, X_zoo, _ = load_zoo(include_type=False)
+_, X_zoo_scaled = scale_features(X_zoo)
 
 pca = PCA(n_components=2, random_state=0)
 X_zoo_2d = pca.fit_transform(X_zoo_scaled)
@@ -301,6 +189,13 @@ The PCA projection keeps the class PDF idea: we reduce the dimensions and then w
 ### 1.J Compare with the real types (class step: Evaluation + Imbalance Treatment)
 
 ```python
+from class_helpers import load_zoo, scale_features
+from sklearn.cluster import KMeans
+
+_, _, X_zoo, y_zoo = load_zoo(include_type=False)
+_, X_zoo_scaled = scale_features(X_zoo)
+best_labels = KMeans(n_clusters=7, random_state=0, n_init=10).fit_predict(X_zoo_scaled)
+
 pd.crosstab(best_labels, y_zoo, rownames=["cluster"], colnames=["type"])
 ```
 
@@ -310,25 +205,16 @@ animals are confused.
 ### 1.K Repeat including the `type` column (extra experiment requested)
 
 ```python
-feature_cols_with_type = [c for c in df_zoo.columns if c != "animal_name"]
-X_with_type = df_zoo[feature_cols_with_type].astype(float)
-X_with_type_scaled = scaler.fit_transform(X_with_type)
+from class_helpers import grid_search_kmeans, load_zoo, scale_features
 
-rows_with_type = []
-for k in k_values:
-    for seed in seed_values:
-        model = KMeans(n_clusters=k, random_state=seed, n_init=10)
-        labels = model.fit_predict(X_with_type_scaled)
-        rows_with_type.append(
-            {
-                "k": k,
-                "seed": seed,
-                "silhouette": silhouette_score(X_with_type_scaled, labels),
-                "ARI": adjusted_rand_score(y_zoo, labels),
-            }
-        )
+k_values = [5, 6, 7, 8]
+seed_values = [0, 1, 2]
 
-pd.DataFrame(rows_with_type)
+_, feature_cols_with_type, X_with_type, y_zoo = load_zoo(include_type=True)
+_, X_with_type_scaled = scale_features(X_with_type)
+
+rows_with_type = grid_search_kmeans(X_with_type_scaled, y_zoo, k_values, seed_values)
+rows_with_type
 ```
 
 When the `type` label is included as a feature the ARI becomes artificially high. This confirms the theory from the PDFs: we
@@ -346,8 +232,12 @@ I reuse `X_zoo_scaled` so the preparation steps (Loading Data, Missing Values, S
 ### 2.A Compute distance matrices (class step: Data Transformation)
 
 ```python
+from class_helpers import load_zoo, scale_features
 from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn.metrics import pairwise_distances
+
+_, _, X_zoo, _ = load_zoo(include_type=False)
+_, X_zoo_scaled = scale_features(X_zoo)
 
 zoo_distance_matrix = pairwise_distances(X_zoo_scaled, metric="euclidean")
 ```
@@ -532,7 +422,9 @@ def plot_side_by_side(original: np.ndarray, reduced: np.ndarray, title: str) -> 
 ### 5.A Load all images (class step: Loading Data)
 
 ```python
-images = {name: load_image(path) for name, path in paths.items() if name in {"landscape", "gradient", "stripes"}}
+from class_helpers import load_image_array
+
+images = {name: load_image_array(name) for name in ("landscape", "gradient", "stripes")}
 {key: img.shape for key, img in images.items()}
 ```
 
@@ -546,6 +438,11 @@ palette_plan = {
     "gradient": [4, 8, 16],
     "stripes": [2, 4, 8],
 }
+
+if "images" not in globals():
+    from class_helpers import load_image_array
+
+    images = {name: load_image_array(name) for name in ("landscape", "gradient", "stripes")}
 
 quantized_results = {}
 for name, palette_sizes in palette_plan.items():
@@ -564,6 +461,24 @@ The figures show the trade-off: fewer colours mean more banding, exactly like in
 ```python
 def mse(original: np.ndarray, reduced: np.ndarray) -> float:
     return float(np.mean((original - reduced) ** 2))
+
+if "quantized_results" not in globals():
+    from class_helpers import load_image_array
+
+    images = {name: load_image_array(name) for name in ("landscape", "gradient", "stripes")}
+    palette_plan = {
+        "landscape": [8, 16, 32],
+        "gradient": [4, 8, 16],
+        "stripes": [2, 4, 8],
+    }
+
+    quantized_results = {}
+    for name, palette_sizes in palette_plan.items():
+        original = images[name]
+        quantized_results[name] = []
+        for n_colors in palette_sizes:
+            reduced = quantize_image(original, n_colors, random_state=0)
+            quantized_results[name].append((n_colors, reduced))
 
 error_table = []
 for name, variants in quantized_results.items():
@@ -585,6 +500,24 @@ The mean squared error drops as the palette grows, so I can justify which palett
 
 ```python
 size_records = []
+if "quantized_results" not in globals():
+    from class_helpers import load_image_array
+
+    images = {name: load_image_array(name) for name in ("landscape", "gradient", "stripes")}
+    palette_plan = {
+        "landscape": [8, 16, 32],
+        "gradient": [4, 8, 16],
+        "stripes": [2, 4, 8],
+    }
+
+    quantized_results = {}
+    for name, palette_sizes in palette_plan.items():
+        original = images[name]
+        quantized_results[name] = []
+        for n_colors in palette_sizes:
+            reduced = quantize_image(original, n_colors, random_state=0)
+            quantized_results[name].append((n_colors, reduced))
+
 for name, variants in quantized_results.items():
     for n_colors, reduced in variants:
         output_path = OUTPUT_DIR / f"{name}_{n_colors}.png"
@@ -605,6 +538,40 @@ size_table
 ### 6.B Compare with the original sizes (class step: Visualization + Evaluation)
 
 ```python
+if "size_table" not in globals():
+    from class_helpers import load_image_array
+
+    images = {name: load_image_array(name) for name in ("landscape", "gradient", "stripes")}
+    palette_plan = {
+        "landscape": [8, 16, 32],
+        "gradient": [4, 8, 16],
+        "stripes": [2, 4, 8],
+    }
+
+    quantized_results = {}
+    for name, palette_sizes in palette_plan.items():
+        original = images[name]
+        quantized_results[name] = []
+        for n_colors in palette_sizes:
+            reduced = quantize_image(original, n_colors, random_state=0)
+            quantized_results[name].append((n_colors, reduced))
+
+    size_records = []
+    for name, variants in quantized_results.items():
+        for n_colors, reduced in variants:
+            output_path = OUTPUT_DIR / f"{name}_{n_colors}.png"
+            save_image(reduced, output_path)
+            size_kb = output_path.stat().st_size / 1024
+            size_records.append(
+                {
+                    "image": name,
+                    "colors": n_colors,
+                    "size_kb": round(size_kb, 2),
+                }
+            )
+
+    size_table = pd.DataFrame(size_records)
+
 original_sizes = []
 for name in ["landscape", "gradient", "stripes"]:
     size_kb = (paths[name].stat().st_size) / 1024
@@ -719,18 +686,17 @@ From the plot we see that around 60 components keep 90% of the variance.
 ### 9.A Load and split the dataset (class step: Loading Data + Data Selection)
 
 ```python
-from sklearn.datasets import load_digits
-from sklearn.model_selection import train_test_split
+from class_helpers import load_digits_split
 
-X_digits, y_digits = load_digits(return_X_y=True)
-X_train, X_test, y_train, y_test = train_test_split(
-    X_digits, y_digits, test_size=0.3, random_state=0, stratify=y_digits
-)
+X_train, X_test, y_train, y_test = load_digits_split(test_size=0.3, random_state=0)
+X_train.shape, X_test.shape
 ```
 
 ### 9.B Standardise the pixels (class step: Data Transformation)
 
 ```python
+from sklearn.preprocessing import StandardScaler
+
 scaler_digits = StandardScaler()
 X_train_scaled = scaler_digits.fit_transform(X_train)
 X_test_scaled = scaler_digits.transform(X_test)
@@ -750,6 +716,18 @@ The digits dataset is almost balanced, so we do not apply extra weighting.
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+
+if "X_train" not in globals():
+    from class_helpers import load_digits_split
+
+    X_train, X_test, y_train, y_test = load_digits_split(test_size=0.3, random_state=0)
+
+if "X_train_scaled" not in globals():
+    from sklearn.preprocessing import StandardScaler
+
+    scaler_digits = StandardScaler()
+    X_train_scaled = scaler_digits.fit_transform(X_train)
+    X_test_scaled = scaler_digits.transform(X_test)
 
 knn = KNeighborsClassifier(n_neighbors=5)
 logreg = LogisticRegression(max_iter=1000, multi_class="multinomial")
@@ -771,6 +749,16 @@ pd.DataFrame(baseline_scores)
 ### 9.E Apply PCA and retrain (class step: Dimensionality Reduction + Modeling)
 
 ```python
+pca_ready = "X_train_scaled" in globals()
+if not pca_ready or "X_train" not in globals():
+    from class_helpers import load_digits_split
+    from sklearn.preprocessing import StandardScaler
+
+    X_train, X_test, y_train, y_test = load_digits_split(test_size=0.3, random_state=0)
+    scaler_digits = StandardScaler()
+    X_train_scaled = scaler_digits.fit_transform(X_train)
+    X_test_scaled = scaler_digits.transform(X_test)
+
 pca_digits = PCA(n_components=0.95, random_state=0)
 X_train_pca = pca_digits.fit_transform(X_train_scaled)
 X_test_pca = pca_digits.transform(X_test_scaled)
