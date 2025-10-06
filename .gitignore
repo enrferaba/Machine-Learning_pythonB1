@@ -1,0 +1,6 @@
+# Ignore large binary packages from the official zip bundle
+Files-20250930 (2)/Files-20251006.zip
+Files-20250930 (2)/files/images.tar
+Files-20250930 (2)/files/reduced_images/
+# Allow users to keep their own scratch notebooks locally
+.ipynb_checkpoints/
