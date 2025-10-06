@@ -61,7 +61,7 @@ def execute_notebook(path: Path) -> None:
 
 
 def main() -> None:
-    notebook_path = Path("prueba1/boletin1_python.ipynb")
+    notebook_path = Path("trabajo_step_by_step.ipynb")
     execute_notebook(notebook_path)
     print(f"Notebook ejecutado y actualizado: {notebook_path}")
 

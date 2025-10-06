@@ -9,8 +9,11 @@ import pandas as pd
 from sklearn.preprocessing import StandardScaler
 
 DATA_DIR = Path("Files-20250930 (2)")
-IMAGES_DIR = Path("prueba1/images")
-OUTPUT_DIR = Path("prueba1/reduced_images")
+FILES_DIR = DATA_DIR / "files"
+IMAGES_DIR = FILES_DIR / "images"
+IMAGES_ARCHIVE = FILES_DIR / "images.tar"
+ZIP_ARCHIVE = DATA_DIR / "Files-20251006.zip"
+OUTPUT_DIR = FILES_DIR / "reduced_images"
 
 paths: Dict[str, Path] = {
     "zoo": DATA_DIR / "zoo.data",
@@ -19,6 +22,55 @@ paths: Dict[str, Path] = {
     "gradient": IMAGES_DIR / "gradient.ppm",
     "stripes": IMAGES_DIR / "stripes.ppm",
 }
+
+
+def ensure_image_resources() -> None:
+    """Make sure the practice images are available under ``IMAGES_DIR``.
+
+    The official package stores the three ``.ppm`` images inside a ``tar`` archive
+    located at ``Files-20250930 (2)/files/images.tar``.  When the working tree is
+    fresh (for example after cloning the repository) the extracted directory may
+    not exist yet.  This helper mirrors the teacher's setup: if the folder is
+    missing we unpack the archive next to it.  The reduced image directory is
+    also prepared so that later exercises can write their outputs without
+    touching the now-removed ``prueba1`` folder.
+    """
+
+    FILES_DIR.mkdir(parents=True, exist_ok=True)
+
+    if IMAGES_DIR.exists():
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        return
+
+    if IMAGES_ARCHIVE.exists():
+        import tarfile
+
+        with tarfile.open(IMAGES_ARCHIVE, mode="r") as archive:
+            archive.extractall(path=FILES_DIR)
+    elif ZIP_ARCHIVE.exists():
+        import zipfile
+
+        with zipfile.ZipFile(ZIP_ARCHIVE) as bundle:
+            bundle.extractall(path=DATA_DIR)
+
+        if not IMAGES_ARCHIVE.exists():
+            raise FileNotFoundError(
+                "The official ZIP was unpacked but images.tar is still missing. "
+                "Verify the download or rebuild it with prepare_official_files.ipynb."
+            )
+
+        import tarfile
+
+        with tarfile.open(IMAGES_ARCHIVE, mode="r") as archive:
+            archive.extractall(path=FILES_DIR)
+    else:
+        raise FileNotFoundError(
+            "Practice images are unavailable. Run Files-20250930 (2)/prepare_official_files.ipynb "
+            "after placing Files-20251006.zip next to it so the resources can be recreated."
+        )
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
 
 
 def ensure_faces_dataset(path: Path) -> None:
@@ -118,6 +170,8 @@ def ensure_faces_dataset(path: Path) -> None:
 
 
 def ensure_practice_paths() -> None:
+    ensure_image_resources()
+
     for name, target in paths.items():
         if name == "faces":
             ensure_faces_dataset(target)

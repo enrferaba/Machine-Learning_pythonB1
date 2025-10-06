@@ -31,7 +31,7 @@ the same order in both this Markdown file and the companion notebook `trabajo_st
 8. Cumulative explained variance plot (Enunciado 8).
 9. Classification comparison before and after PCA (Enunciado 9).
 
-I also sync the `prueba1/boletin1_python.ipynb` notebook with the same cells so you can execute the whole story following the
+I also sync the `trabajo_step_by_step.ipynb` notebook with the same cells so you can execute the whole story following the
 class workflow.
 
 ---
@@ -829,6 +829,6 @@ features drastically. This mirrors the comment we made in class about the speed 
 
 * I followed the same order and the same analysis checklist as the class PDFs.
 * Every enunciado includes explicit mentions of the class pipeline steps.
-* The Markdown document and the two notebooks (`trabajo_step_by_step.ipynb` and `prueba1/boletin1_python.ipynb`) share the same
+* The Markdown document and the notebook (`trabajo_step_by_step.ipynb`) share the same
   structure so you can read or execute the solutions.
 
